@@ -13,6 +13,8 @@ control GeneralizedVO::compute_optimal_u(const control &u_desire,
   // output: u_optimal: the optimal control
 
   control u_optimal;
+  u_optimal.v = 0;
+  u_optimal.w = 0;
   double best_d = -1;
   double best_t = -1;
   double min_cost = 1000000;
@@ -64,8 +66,7 @@ std::vector<control> GeneralizedVO::compute_feasible_control(
       double min_t_min = t_mins[min_d_min_iter - d_mins.begin()];
       //  std::cout<< "min_d_min: " << min_d_min << std::endl;
       // std::cout<< "min_t_min: " << min_t_min << std::endl;
-      if (min_d_min > robot_radius + obs_radius &&
-          (min_t_min > t_step || abs(min_t_min) < 0.001)) {
+      if (min_d_min > robot_radius + obs_radius) {
         u_feasible.push_back(u);
         min_d_mins.push_back(min_d_min);
         min_t_mins.push_back(min_t_min);
@@ -175,11 +176,22 @@ control GeneralizedVO::compute_preferred_control(const robot_state &robot,
   //     u_preferred.w = -w_max;
   //   else
   //     u_preferred.w = theta_diff / t_step;
-  u_preferred.w = theta_diff / t_step;
-  if (abs(theta_diff) > 0.01) {
-    u_preferred.v = 0;
-    return u_preferred;
-  }
+  
+  // if (abs(theta_diff) > 10.0/180.0*M_PI) {
+  //   u_preferred.v = 0;
+  //   if(theta_diff > 0){
+  //       u_preferred.w = 0.5;
+  //   }
+  //   else{
+  //       u_preferred.w = -0.5;
+  //   }
+  //   return u_preferred;
+  // }
+  // else{
+  //     u_preferred.v = v_max;
+  //     u_preferred.w = 0;
+  //     return u_preferred;
+  // }
 //   if(abs(theta_diff) < 5.0/180.0*M_PI){
 //       u_preferred.w = theta_diff / t_step /5.0;
 //       return u_preferred;
@@ -190,6 +202,7 @@ control GeneralizedVO::compute_preferred_control(const robot_state &robot,
   //     return u_preferred;
   // }
   u_preferred.v = v_max;
+  u_preferred.w = theta_diff / (t_step*10);
 
   return u_preferred;
 }

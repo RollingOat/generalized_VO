@@ -32,6 +32,7 @@ private:
   ros::Subscriber odom_sub_;
   ros::Subscriber obs_states_sub_;
   ros::Publisher marker_pub;
+  ros::Subscriber real_obs_states_sub_;
 
 public:
   vo_node(const ros::NodeHandle &nh, double v_max, double w_max, double v_step,
@@ -54,6 +55,8 @@ public:
     odom_sub_ = nh_.subscribe("/scarab40/ground_truth/odom", 10, &vo_node::odomCallback, this);
     obs_states_sub_ =
         nh_.subscribe("/gazebo/model_states", 10, &vo_node::obsStateCallback, this);
+    real_obs_states_sub_ =
+        nh_.subscribe("/scarab40/obs_states", 10, &vo_node::realObsStateCallback, this);
     marker_pub = nh_.advertise<visualization_msgs::Marker>(
         "visualization_marker", 10);
   }
@@ -147,6 +150,20 @@ public:
       obs_states_queue.pop();
     }
   }
+
+  void realObsStateCallback(const nav_msgs::Odometry::ConstPtr &msg) {
+    obstacle_state obs;
+    obs.x = msg->pose.pose.position.x;
+    obs.y = msg->pose.pose.position.y;
+    obs.vx = msg->twist.twist.linear.x;
+    obs.vy = msg->twist.twist.linear.y;
+    std::vector<obstacle_state> obs_states;
+    obs_states.push_back(obs);
+    obs_states_queue.push(obs_states);
+    if (obs_states_queue.size() > 10) {
+      obs_states_queue.pop();
+    }
+  }
 };
 
 int main(int argc, char **argv) {
@@ -154,13 +171,13 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "gvo_node");
   ros::NodeHandle nh;
   double v_max = 1;
-  double w_max = 0.5;
+  double w_max = 1.5;
   double v_step = 0.1;
-  double w_step = 0.05;
+  double w_step = 0.3;
   double t_horizon = 2;
   double t_step = 0.1;
-  double robot_radius = 0.2;
-  double obs_radius = 0.3;
+  double robot_radius = 0.5;
+  double obs_radius = 0.5;
   double goal_tol = 0.5;
   vo_node vo(nh, v_max, w_max, v_step, w_step, t_horizon, t_step, robot_radius,
              obs_radius, goal_tol);

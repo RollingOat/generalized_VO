@@ -18,6 +18,10 @@ class generalVO:
         self.obstacle_radius = obstacle_radius
 
     def compute_optimal_u(self, u_desired, u_feasible):
+        # the dimension of u_feasible is (2,) return directly
+        if u_feasible.shape[0] == 2:
+            print("no feasible control")
+            return u_feasible, 0
         diff_norm = np.linalg.norm(u_desired - u_feasible, axis=1)
         u_optimal = u_feasible[np.argmin(diff_norm)]
         return u_optimal, np.argmin(diff_norm).item()
@@ -59,13 +63,15 @@ class generalVO:
         w = (goal_angle - theta) / self.t_step
         u = np.array([v, w])
         if(((x_g - x)**2+(y_g - y)**2)**(1/2) < 0.5):
+            print("reach the goal")
             u = np.array([0, 0])
         return u
 
     def find_best_feasible_control(self, robot_state, obstacle_state, goal):
-        v = np.arange(-self.v_max-self.v_step, self.v_max+self.v_step, self.v_step)
+        v = np.arange(0, self.v_max+self.v_step, self.v_step)
         w = np.arange(-self.w_max-self.w_step, self.w_max+self.w_step, self.w_step)
-        feasible_u = np.array([0, 0])
+        # feasible_u = np.array([0, 0])
+        feasible_u = []
         feasible_t = np.array([0])
         feasible_d = np.array([0])
         for i in range(len(v)):
@@ -87,13 +93,18 @@ class generalVO:
                 argmin_in_d_mins = np.argmin(d_mins).item()
                 t_min = t_mins[argmin_in_d_mins]
                 if min_in_d_mins > (self.robot_radius + self.obstacle_radius) and (t_min >= self.t_step or t_min == 0):
-                    feasible_u = np.vstack((feasible_u, u))
+                    print("feasible control: ", u)
+                    print("min in d_mins: ", min_in_d_mins)
+                    print("min in t_mins: ", t_min)
+                    # feasible_u = np.vstack((feasible_u, u))
+                    feasible_u.append(u)
                     feasible_t = np.vstack((feasible_t, t_min))
                     feasible_d = np.vstack((feasible_d, d_min))
-        if feasible_u.shape[0] == 1:
+        if len(feasible_u) == 0:
             print("no feasible control")
             return np.array([0, 0])
         prefered_u = self.find_prefered_control(robot_state, goal)
+        feasible_u = np.array(feasible_u)
         optimal_u, optimal_idx = self.compute_optimal_u(prefered_u, feasible_u)
         print("optimal_u: ", optimal_u)
         print("min distance to obstacle: ", feasible_d[optimal_idx])
@@ -185,21 +196,23 @@ def update(frame, robot_hist_traj, obs_hist_traj, robot_hist_control):
 
 if __name__ == "__main__":
 
-    obs_speed = 1
-    obs_vels = np.array([[-obs_speed, -obs_speed], [-obs_speed, obs_speed], [obs_speed, -obs_speed], [-obs_speed,0], [obs_speed, 0]])
+    obs_speed = 0.5
+    # obs_vels = np.array([[-obs_speed, -obs_speed], [-obs_speed, obs_speed], [obs_speed, -obs_speed], [-obs_speed,0], [obs_speed, 0]])
+    obs_vels = np.array([[-obs_speed,0]])
     
-    obs_init_positions = np.array([[5, 5], [5, 1], [1, 5], [6, 3], [1, 4]])
-    robot_init_state = np.array([0, 0, 0])
+    # obs_init_positions = np.array([[5, 5], [5, 1], [1, 5], [6, 3], [1, 4]])
+    obs_init_positions = np.array([[6, 3]])
+    robot_init_state = np.array([3, 3, 0])
     robot_radius = 0.2
     obstacle_radius = 0.2
     v_max = 1
-    w_max = 2
+    w_max = 1.5
     v_step = 0.1
-    w_step = 0.1
+    w_step = 0.3
     t_max = 2
     t_step = 0.1
     t = np.arange(0, 10, t_step)
-    goal = np.array([3, 6])
+    goal = np.array([3, 3])
     vo = generalVO(v_max, w_max, v_step, w_step, t_max,
                    t_step, robot_radius, obstacle_radius)
     last_robot_state = robot_init_state
@@ -210,10 +223,10 @@ if __name__ == "__main__":
 
     reached_goal = False
     for i in range(len(t)):
-        if reached_goal:
-            robot_hist_control[:, i] = np.array([0, 0])
-            robot_hist_traj[:, i] = last_robot_state
-            continue
+        # if reached_goal:
+        #     robot_hist_control[:, i] = np.array([0, 0])
+        #     robot_hist_traj[:, i] = last_robot_state
+        #     continue
         cur_t = t[i]
         obs_states = simulate_obs_state(obs_init_positions, obs_vels, cur_t)
         obs_hist_traj[:, :, i] = obs_states
